@@ -1,165 +1,74 @@
 # week6-db
 
-Database Indexing and Optimization
+SQL Joins and Database Relationships
+In relational databases, relationships between tables are established to avoid data redundancy and maintain data integrity.  SQL JOIN clauses are used to query data from multiple tables based on these relationships.
 
-Database performance is crucial for any application. Here's an overview of common indexing and optimization techniques, along with solutions to potential problems:
+Database Relationships
+One-to-One: Each record in one table is related to one, and only one, record in another table.
 
-1. Indexing
+Example: A users table and a profiles table, where each user has one profile, and each profile belongs to one user.
 
-What it is: An index is a data structure that improves the speed of data retrieval operations on a database table. It's like an index in a book, which allows you to quickly find specific information without reading the entire book.
+One-to-Many: One record in a table is related to many records in another table.
 
-How it works: Indexes create a separate data structure (e.g., a B-tree) that contains a subset of the data from a table, organized in a way that makes searching faster.
+Example: A customers table and an orders table, where a customer can have multiple orders, but each order belongs to only one customer.
 
-Types of Indexes:
+Many-to-Many: Many records in one table are related to many records in another table.  This is typically implemented using a junction table.
 
-Primary Key Index: Automatically created for the primary key of a table.
+Example: A students table and a courses table, where a student can enroll in many courses, and a course can have many students.  A junction table like enrollments would store the student_id and course_id.
 
-Example: In a users table, the user_id column would typically have a primary key index.
+SQL JOINs
+SQL JOIN clauses are used to combine rows from two or more tables based on a related column between them.
 
-Unique Index: Ensures that the values in a column are unique.
+1.  INNER JOIN
 
-Example: In a users table, the email column might have a unique index.
+Returns only the rows that have matching values in both tables.
 
-Composite Index: An index on two or more columns.
+SELECT orders.order_id, customers.customer_name
+FROM orders
+INNER JOIN customers ON orders.customer_id = customers.customer_id;
 
-Example: In an orders table, you might create a composite index on (customer_id, order_date).
+2.  LEFT JOIN (or LEFT OUTER JOIN)
 
-Full-Text Index: Used for searching text data.
+Returns all rows from the left table, and the matching rows from the right table.  If there's no match in the right table, NULL values are returned for the right table's columns.
 
-Example: In a articles table, you might create a full-text index on the content column.
+SELECT customers.customer_name, orders.order_id
+FROM customers
+LEFT JOIN orders ON customers.customer_id = orders.customer_id;
 
-Problems and Solutions:
+3.  RIGHT JOIN (or RIGHT OUTER JOIN)
 
-Problem: Slow queries due to full table scans.
+Returns all rows from the right table, and the matching rows from the left table.  If there's no match in the left table, NULL values are returned for the left table's columns.
 
-Solution: Create indexes on columns that are frequently used in WHERE clauses, JOIN conditions, and ORDER BY clauses.  A full table scan happens when the database has to read every row in a table to find the rows that match the query.  Indexes help the database to quickly locate the relevant rows, avoiding a full table scan.
+SELECT orders.order_id, customers.customer_name
+FROM orders
+RIGHT JOIN customers ON orders.customer_id = customers.customer_id;
 
-Example: CREATE INDEX idx_name ON customers (last_name);  This will create an index on the last_name column of the customers table.  If you frequently query the customers table using the last_name column (e.g., SELECT * FROM customers WHERE last_name = 'Smith'), this index will significantly speed up the query.
+4.  FULL OUTER JOIN
 
-Problem: Index overhead (indexes take up storage space and can slow down INSERT, UPDATE, and DELETE operations).
+Returns all rows from both tables.  If there are no matching rows, NULL values are returned for the columns of the table that doesn't have a match.
 
-Solution: Only create indexes on columns that significantly improve query performance. Drop unused indexes. Consider the trade-off between read and write performance.
-Problem: Inefficient queries that don't use indexes.
+SELECT customers.customer_name, orders.order_id
+FROM customers
+FULL OUTER JOIN orders ON customers.customer_id = orders.customer_id;
 
-Solution: Use the EXPLAIN statement (in most SQL databases) to analyze query execution plans and identify if indexes are being used. Rewrite queries to be more "index-friendly" (e.g., avoid using functions like UPPER() in WHERE clauses, as they can prevent index usage).
+5.  CROSS JOIN
 
-Example: Instead of WHERE UPPER(last_name) = 'SMITH', use WHERE last_name = 'SMITH'.  The UPPER() function prevents the database from using a standard index on last_name.
+Returns the Cartesian product of the rows from both tables.  Every row from the first table is combined with every row from the second table.  It does not require a join condition.
 
-Problem: Too many indexes
+Use with caution, as it can produce very large result sets.
 
-Solution: Regularly review indexes. Drop redundant or unused indexes.
+SELECT customers.customer_name, products.product_name
+FROM customers
+CROSS JOIN products;
 
-2. Query Optimization
+Join Conditions
+The ON clause specifies the relationship between the tables.  It indicates which columns should be used to match rows.
 
-What it is: Techniques to improve the efficiency of SQL queries.
+The most common type of join condition is an equality condition, where the values in the specified columns must be equal (e.g., orders.customer_id = customers.customer_id).
 
-Techniques:
+Aliases
+Table aliases can be used to shorten table names in a query, making it more readable, especially when joining multiple tables.
 
-Write efficient SQL: Avoid SELECT * (select only the necessary columns), use appropriate JOIN types, and minimize the use of subqueries.
-
-Example: Instead of SELECT * FROM orders WHERE customer_id = 123;, use SELECT order_id, order_date, amount FROM orders WHERE customer_id = 123;
-
-Use prepared statements: For queries that are executed multiple times, prepared statements can improve performance by precompiling the query.
-
-Example (Python with a database connector):
-
-cursor.execute("SELECT * FROM products WHERE category = %s", ("Electronics",))
-
-Optimize WHERE clauses: Place the most selective conditions first in the WHERE clause.
-
-Example: If you have a query with WHERE customer_id = 123 AND order_date > '2024-01-01', and customer_id is more selective (fewer rows match), put that condition first.
-
-Use LIMIT and OFFSET: When retrieving a large number of rows, use LIMIT to restrict the number of rows returned, and OFFSET for pagination.
-
-Example: SELECT * FROM products LIMIT 10 OFFSET 20; (Retrieves rows 21-30).
-
-Problems and Solutions:
-
-Problem: Slow queries due to inefficient SQL.
-
-Solution: Rewrite the query using best practices. Use the EXPLAIN statement to analyze the query plan.
-
-Problem: Database locking (which can occur with long-running transactions, blocking other queries).
-
-Solution: Optimize queries to execute quickly. Use transactions appropriately and commit them as soon as possible. Consider using lower isolation levels (if appropriate for your application) to reduce locking.
-
-Problem: Cartesian Products (which can occur if join conditions are not correctly specified)
-
-Solution: Ensure that all JOIN clauses have proper ON conditions.
-
-Example: Instead of SELECT * FROM A, B, use SELECT * FROM A INNER JOIN B ON A.id = B.a_id
-
-Problem: Suboptimal Join Order
-
-Solution: In some databases, the query optimizer chooses the order in which tables are joined. In others, you might be able to influence this with hints or by rewriting the query.
-3. Database Configuration
-
-What it is: Adjusting database server settings to optimize performance.
-
-Settings:
-
-Memory allocation: Allocate enough memory to the database server (e.g., for the buffer pool in MySQL or SQL Server) to cache frequently accessed data.
-
-Disk I/O: Use fast storage devices (e.g., SSDs) and optimize disk access patterns.
-
-Connection pooling: Use a connection pool to reduce the overhead of establishing new database connections.
-
-Caching: Implement caching mechanisms (e.g., using Redis or Memcached) to store frequently accessed data in memory.
-
-Problems and Solutions:
-
-Problem: Insufficient memory leading to disk swapping and slow performance.
-
-Solution: Increase the amount of RAM available to the database server. Tune database memory settings.
-
-Problem: Slow disk I/O.
-
-Solution: Use faster disks (SSDs). Optimize disk configuration. Consider using RAID.
-
-Problem: Too many database connections
-
-Solution: Implement connection pooling.
-
-Problem: Slow performance due to frequently accessed data being read from disk
-
-Solution: Implement a caching layer.
-
-4. Schema Optimization
-
-What it is: Designing the database schema in an optimal way.
-
-Techniques
-
-Normalization: Reduce data redundancy and improve data integrity.
-
-Example: Instead of storing customer address in the orders table, store it in a customers table and reference it with customer_id.
-
-Denormalization: In some cases, denormalization (adding redundancy) can improve read performance.
-
-Example: You might add a customer_name column to the orders table if you frequently need to display the customer name with order information, and the performance gain outweighs the redundancy.
-
-Choosing appropriate data types: Use the smallest data type that can store the required data.
-
-Example: Use SMALLINT instead of INT if the values will never exceed the range of a small integer. Use VARCHAR with an appropriate maximum length.
-
-Partitioning: Divide large tables into smaller, more manageable parts.
-
-Example: Partitioning a sales table by year.
-
-Problems and Solutions:
-
-Problem: Data redundancy leading to inconsistencies and increased storage.
-
-Solution: Normalize the database schema.
-
-Problem: Complex queries due to a highly normalized schema.
-
-Solution: Consider denormalization (with careful consideration of the trade-offs).
-
-Problem: Large tables that are slow to query
-
-Solution: Partition the tables.
-
-Problem: Inefficient data storage
-
-Solution: Use appropriate data types for each column.
+SELECT c.customer_name, o.order_id
+FROM customers AS c
+INNER JOIN orders AS o ON c.customer_id = o.customer_id;
